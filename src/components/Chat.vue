@@ -11,10 +11,9 @@
             :key="index"
             :class="{ 'active-topic': index === currentTopicIndex }"
             @click="loadTopic(index)"
-            @mouseover="hoverTopic(index)"
-            @mouseout="leaveTopic(index)"
           >
             {{ topic.name }}
+            <button class="delete-topic-button" @click.stop="confirmDeleteTopic(index)">x</button>
           </li>
         </ul>
       </div>
@@ -70,11 +69,11 @@ export default {
     return {
       messages: [],
       newMessage: '',
-      suggestions: ['肝病要吃啥药？', '哪些人最好不好吃蜂蜜？', '全血细胞计数能查出啥来？', '怎样才能预防肾虚？'],
+      suggestions: ['肝病要吃啥药？', '哪些人最好不要吃蜂蜜？', '全血细胞计数能查出啥来？', '怎样才能预防肾虚？'],
       topics: [],
       currentTopicIndex: null,
       hoveredTopicIndex: null,
-      recognition: null, // 保存语音识别对象
+      recognition: null,
     };
   },
   methods: {
@@ -122,6 +121,20 @@ export default {
       const topicId = this.topics[this.currentTopicIndex].id;
       axios.post('http://127.0.0.1:5000/api/save_messages', { topicId, messages: this.messages });
     },
+    async confirmDeleteTopic(index) {
+      if (confirm("您确定要删除此话题吗？")) {
+        await this.deleteTopic(index);
+      }
+    },
+    async deleteTopic(index) {
+      const topicId = this.topics[index].id;
+      await axios.post('http://127.0.0.1:5000/api/delete_topic', { topicId });
+      this.topics.splice(index, 1);
+      if (this.currentTopicIndex === index) {
+        this.currentTopicIndex = null;
+        this.messages = [];
+      }
+    },
     hoverTopic(index) {
       this.hoveredTopicIndex = index;
     },
@@ -136,7 +149,7 @@ export default {
         return;
       }
       this.recognition = new webkitSpeechRecognition();
-      this.recognition.lang = 'zh-CN'; // 设置为中文
+      this.recognition.lang = 'zh-CN';
       this.recognition.interimResults = false;
       this.recognition.maxAlternatives = 1;
 
@@ -161,7 +174,9 @@ export default {
       if (user) {
         const response = await axios.get(`http://127.0.0.1:5000/api/get_topics?username=${user.username}`);
         this.topics = response.data.topics;
-        this.promptNewTopic();  // Always prompt for new topic on login
+        if (this.topics.length > 0) {
+          this.loadTopic(0);  // 默认加载第一个话题
+        }
       }
     }
   }
@@ -222,6 +237,8 @@ export default {
   transition: background-color 0.3s, transform 0.3s;
   border-radius: 5px;
   margin-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
 }
 
 .sidebar-content li:hover {
@@ -234,6 +251,15 @@ export default {
   color: white;
   font-weight: bold;
   transform: scale(1.05);
+}
+
+
+.delete-topic-button {
+  background: none;
+  border: none;
+  color: red;
+  cursor: pointer;
+  font-size: 16px;
 }
 
 .chat-container {
